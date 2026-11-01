@@ -65,7 +65,7 @@ private val repeatOptions = listOf(
     Repeat.ONCE to "Just once",
     Repeat.DAILY to "Every day",
     Repeat.WEEKDAYS to "Weekdays",
-    Repeat.WEEKLY to "Weekly",
+    Repeat.WEEKLY to "Specific days",
     Repeat.EVERY_N_DAYS to "Every few days",
 )
 
@@ -231,7 +231,17 @@ fun EditorScreen(vm: MainViewModel, reminderId: Long?, onClose: () -> Unit, onSa
                 SectionLabel("REPEATS")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     for ((value, label) in repeatOptions) {
-                        OptionChip(label, selected = repeat == value, onClick = { repeat = value })
+                        OptionChip(
+                            label,
+                            selected = repeat == value,
+                            onClick = {
+                                repeat = value
+                                // Start with today's weekday lit so the picker is never blank.
+                                if (value == Repeat.WEEKLY && weekdays == 0) {
+                                    weekdays = 1 shl dayOfWeekIndex(today)
+                                }
+                            },
+                        )
                     }
                 }
                 when (repeat) {
@@ -241,7 +251,11 @@ fun EditorScreen(vm: MainViewModel, reminderId: Long?, onClose: () -> Unit, onSa
                             Box(
                                 Modifier.size(44.dp).clip(CircleShape)
                                     .background(if (on) P.Accent else P.Card)
-                                    .clickable { weekdays = weekdays xor (1 shl i) },
+                                    .clickable {
+                                        // At least one day must stay selected.
+                                        val next = weekdays xor (1 shl i)
+                                        if (next != 0) weekdays = next
+                                    },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
