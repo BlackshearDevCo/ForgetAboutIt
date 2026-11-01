@@ -27,7 +27,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -62,7 +66,7 @@ import app.forgetaboutit.domain.epochDayOf
 private val Danger = Color(0xFFFFA39B)
 
 private val repeatOptions = listOf(
-    Repeat.ONCE to "Just once",
+    Repeat.ONCE to "On a date",
     Repeat.DAILY to "Every day",
     Repeat.WEEKDAYS to "Weekdays",
     Repeat.WEEKLY to "Specific days",
@@ -101,6 +105,7 @@ fun EditorScreen(vm: MainViewModel, reminderId: Long?, onClose: () -> Unit, onSa
     /** null = closed, -1 = adding a time, -2 = the "start nudging at" time, >= 0 = editing that time. */
     var timeDialog by remember { mutableStateOf<Int?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var dateDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(reminderId) {
         if (reminderId != null) {
@@ -270,11 +275,21 @@ fun EditorScreen(vm: MainViewModel, reminderId: Long?, onClose: () -> Unit, onSa
                         onMinus = { if (intervalDays > 2) intervalDays-- },
                         onPlus = { if (intervalDays < 60) intervalDays++ },
                     )
-                    Repeat.ONCE -> Stepper(
-                        label = if (onceDay == today) "Today" else fmtDate(onceDay),
-                        onMinus = { if (onceDay > today) onceDay-- },
-                        onPlus = { onceDay++ },
-                    )
+                    Repeat.ONCE -> Row(
+                        Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp))
+                            .background(P.Card).clickable { dateDialog = true }
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Glyph(iconPaths("cal"), P.Dim, 22.dp)
+                        Text(
+                            if (onceDay == today) "Today · ${fmtDate(onceDay)}" else fmtDate(onceDay),
+                            fontSize = 16.sp, fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text("Change", color = P.Accent, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                    }
                     else -> Unit
                 }
             }
@@ -410,6 +425,32 @@ fun EditorScreen(vm: MainViewModel, reminderId: Long?, onClose: () -> Unit, onSa
                 timeDialog = null
             },
         )
+    }
+
+    if (dateDialog) {
+        val dayMillis = 86_400_000L
+        val pickerState = rememberDatePickerState(
+            // The picker works in UTC midnights, which map 1:1 onto epoch days.
+            initialSelectedDateMillis = onceDay * dayMillis,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    utcTimeMillis / dayMillis >= today
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { dateDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { onceDay = maxOf(today, it / dayMillis) }
+                    dateDialog = false
+                }) { Text("OK", color = P.Accent, fontWeight = FontWeight.ExtraBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { dateDialog = false }) { Text("Cancel", color = P.Dim) }
+            },
+        ) {
+            DatePicker(state = pickerState)
+        }
     }
 
     if (confirmDelete) {

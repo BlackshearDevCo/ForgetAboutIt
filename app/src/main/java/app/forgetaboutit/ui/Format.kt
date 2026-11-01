@@ -41,7 +41,7 @@ fun fmtHeaderDate(epochDay: Long): String =
         .uppercase(Locale.getDefault())
 
 fun repeatLabel(r: Reminder): String = when (r.repeat) {
-    Repeat.ONCE -> "Once"
+    Repeat.ONCE -> fmtDate(r.anchorDay)
     Repeat.DAILY -> "Daily"
     Repeat.WEEKDAYS -> "Weekdays"
     Repeat.WEEKLY -> {
