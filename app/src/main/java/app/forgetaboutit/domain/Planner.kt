@@ -16,10 +16,21 @@ import java.time.ZoneId
 fun epochDayOf(millis: Long): Long =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
 
-/** Wall-clock time [minutes] after midnight on [day], in the phone's time zone. */
-fun millisAt(day: Long, minutes: Int): Long =
-    LocalDate.ofEpochDay(day).atStartOfDay(ZoneId.systemDefault())
-        .plusMinutes(minutes.toLong()).toInstant().toEpochMilli()
+/**
+ * The moment the wall clock reads [minutes] after midnight on [day], in the phone's time zone.
+ *
+ * This deliberately builds a local date-time and then resolves it in the zone, rather than
+ * adding minutes to midnight: on a daylight-saving day (23 or 25 hours long) "9:00 AM" must
+ * still mean 9:00 on the clock. Times that don't exist (spring forward) move to the next
+ * valid time; times that happen twice (fall back) use the first one.
+ */
+fun millisAt(day: Long, minutes: Int): Long {
+    val perDay = 24 * 60
+    val date = LocalDate.ofEpochDay(day).plusDays((minutes / perDay).toLong())
+    val inDay = minutes % perDay
+    return date.atTime(inDay / 60, inDay % 60)
+        .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+}
 
 /** Monday = 0 ... Sunday = 6. */
 fun dayOfWeekIndex(day: Long): Int = LocalDate.ofEpochDay(day).dayOfWeek.value - 1
